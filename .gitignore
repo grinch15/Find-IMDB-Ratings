@@ -1,160 +1,79 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+import os
 
-# C extensions
-*.so
+# Setting up session
+s = requests.session()  
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# List contaiting all the films for which data has to be scraped from IMDB
+films = []
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# Lists contaiting web scraped data
+names = []
+ratings = []
+genres = []
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Define path where your films are present 
+# For eg: "/Users/utkarsh/Desktop/films"
+path = input("Enter the path where your films are: ")
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
+# Films with extensions
+filmswe = os.listdir(path)
 
-# Translations
-*.mo
-*.pot
+for film in filmswe:
+    # Append into my films list (without extensions)
+    films.append(os.path.splitext(film)[0])
+    # print(os.path.splitext(film)[0])
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+for line in films:
+    # x = line.split(", ")
+    title = line.lower()
+    # release = x[1]
+    query = "+".join(title.split()) 
+    URL = "https://www.imdb.com/search/title/?title=" + query
+    print(URL)
+    # print(release)
+    try: 
+        response = s.get(URL)
 
-# Flask stuff:
-instance/
-.webassets-cache
+        #getting contect from IMDB Website
+        content = response.content
 
-# Scrapy stuff:
-.scrapy
+        # print(response.status_code)
 
-# Sphinx documentation
-docs/_build/
+        soup = BeautifulSoup(response.content, features="html.parser") 
+        #searching all films containers found
+        containers = soup.find_all("div", class_="lister-item-content")
+        for result in containers:
+            name1 = result.h3.a.text
+            name = result.h3.a.text.lower()
 
-# PyBuilder
-.pybuilder/
-target/
+            # Uncomment below lines if you want year specific as well, define year variable before this 
+            # year = result.h3.find(
+            # "span", class_="lister-item-year text-muted unbold"
+            # ).text.lower() 
 
-# Jupyter Notebook
-.ipynb_checkpoints
+            #if film found (searching using name)
+            if title in name:
+                #scraping rating
+                rating = result.find("div",class_="inline-block ratings-imdb-rating")["data-value"]
+                #scraping genre
+                genre = result.p.find("span", class_="genre")
+                genre = genre.contents[0]
 
-# IPython
-profile_default/
-ipython_config.py
+                #appending name, rating and genre to individual lists
+                names.append(name1)
+                ratings.append(rating)
+                genres.append(genre)
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
+    except Exception:
+        print("Try again with valid combination of tile and release year")
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#pdm.lock
-#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
-#   in version control.
-#   https://pdm.fming.dev/#use-with-ide
-.pdm.toml
+#storing in pandas dataframe
+df = pd.DataFrame({'Film Name':names,'Rating':ratings,'Genre':genres}) 
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+#making csv using pandas
+df.to_csv('film_ratings.csv', index=False, encoding='utf-8')
